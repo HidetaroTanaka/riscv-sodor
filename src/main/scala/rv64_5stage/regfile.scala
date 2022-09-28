@@ -12,7 +12,7 @@ import chisel3.util._
 import Constants._
 import sodor.common._
 
-class RFileIo(implicit val conf: SodorCoreParams) extends Bundle()
+class RFileIo(implicit val conf: Sodor64CoreParams) extends Bundle()
 {
   val rs1_addr = Input(UInt(5.W))
   val rs1_data = Output(UInt(conf.xprlen.W))

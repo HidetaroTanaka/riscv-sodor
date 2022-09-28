@@ -63,6 +63,10 @@ case class SodorCoreParams(
   val nPTECacheEntries: Int = 0
 }
 
+case class Sodor64CoreParams(
+                              override val xprlen: Int = 32
+                            ) extends SodorCoreParams
+
 // DOC include start: CanAttachTile
 case class SodorTileAttachParams(
   tileParams: SodorTileParams,

@@ -10,7 +10,7 @@ import sodor.common._
 import freechips.rocketchip.config.Parameters
 import freechips.rocketchip.tile.CoreInterrupts
 
-class CoreIo(implicit val p: Parameters, val conf: SodorCoreParams) extends Bundle
+class CoreIo(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Bundle
 {
   val ddpath = Flipped(new DebugDPath())
   val dcpath = Flipped(new DebugCPath())
@@ -20,7 +20,7 @@ class CoreIo(implicit val p: Parameters, val conf: SodorCoreParams) extends Bund
   val hartid = Input(UInt())
   val reset_vector = Input(UInt())}
 
-class Core()(implicit val p: Parameters, val conf: SodorCoreParams) extends AbstractCore
+class Core()(implicit val p: Parameters, val conf: Sodor64CoreParams) extends AbstractCore
 {
   val io = IO(new CoreIo())
   val c  = Module(new CtlPath())
