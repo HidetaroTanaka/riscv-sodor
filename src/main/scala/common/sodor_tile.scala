@@ -63,9 +63,12 @@ case class SodorCoreParams(
   val nPTECacheEntries: Int = 0
 }
 
-case class Sodor64CoreParams(
-                              override val xprlen: Int = 32
-                            ) extends SodorCoreParams
+// wtf is difference between case class and normal class?????????????????????
+class Sodor64CoreParams(
+                         override val xprlen: Int = 64
+                       ) extends SodorCoreParams {
+  val instWidth = 32
+}
 
 // DOC include start: CanAttachTile
 case class SodorTileAttachParams(
