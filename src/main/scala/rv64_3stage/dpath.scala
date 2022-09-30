@@ -47,7 +47,7 @@ class DpathIo(implicit val p: Parameters, val conf: SodorCoreParams) extends Bun
    val hartid = Input(UInt())
 }
 
-class DatPath(implicit val p: Parameters, val conf: SodorCoreParams) extends Module
+class DatPath(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Module
 {
    val io = IO(new DpathIo())
    io := DontCare

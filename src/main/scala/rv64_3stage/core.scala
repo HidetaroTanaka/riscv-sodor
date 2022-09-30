@@ -23,7 +23,7 @@ class CoreIo(implicit val p: Parameters, val conf: SodorCoreParams) extends Bund
   val reset_vector = Input(UInt())
 }
 
-class Core(implicit val p: Parameters, val conf: SodorCoreParams) extends AbstractCore
+class Core(implicit val p: Parameters, val conf: Sodor64CoreParams) extends AbstractCore
 {
   val io = IO(new CoreIo())
 

@@ -9,6 +9,7 @@ import chisel3.util._
 
 import sodor.common._
 import Constants._
+import sodor.rv64.funcs
 
 object ALU
 {
@@ -32,15 +33,16 @@ object ALU
 }
 import ALU._
 
-class ALUIO(implicit val conf: SodorCoreParams) extends Bundle {
+class ALUIO(implicit val conf: Sodor64CoreParams) extends Bundle {
   val fn = Input(UInt(SZ_ALU_FN.W))
+  val op32 = Input(Bool())
   val in2 = Input(UInt(conf.xprlen.W))
   val in1 = Input(UInt(conf.xprlen.W))
   val out = Output(UInt(conf.xprlen.W))
   val adder_out = Output(UInt(conf.xprlen.W))
 }
 
-class ALU(implicit val conf: SodorCoreParams) extends Module
+class ALU(implicit val conf: Sodor64CoreParams) extends Module
 {
   val io = IO(new ALUIO)
 
@@ -48,32 +50,54 @@ class ALU(implicit val conf: SodorCoreParams) extends Module
 
   // ADD, SUB
   val sum = io.in1 + Mux(isSub(io.fn), -io.in2, io.in2)
+  // ADDW, SUBW
+  val sum32 = funcs.sign_ext(io.in1(31,0) + Mux(isSub(io.fn), -(io.in2(31,0)), io.in2(31,0)), out_width = 64)
+  val final_sum = Mux(io.op32, sum32, sum)
 
   // SLT, SLTU
   val less  =  Mux(io.in1(msb) === io.in2(msb), sum(msb),
               Mux(isSLTU(io.fn), io.in2(msb), io.in1(msb)))
 
-  require(conf.xprlen == 32)
   // SLL, SRL, SRA
-  val shamt = io.in2(4,0).asUInt()
-  val shin_r = io.in1(31,0)
+  val shamt = io.in2(5,0)
+  val shin_r = io.in1(63,0)
   val shin = Mux(io.fn === ALU_SRL  || io.fn === ALU_SRA, shin_r, Reverse(shin_r))
-  val shout_r = (Cat(isSub(io.fn) & shin(msb), shin).asSInt() >> shamt)(msb,0)
+  val shout_r = (Cat(isSub(io.fn) & shin(msb), shin) >> shamt)(msb,0)
   val shout_l = Reverse(shout_r)
 
+  // SLLW, SRLW, SRAW
+  val shamt32 = io.in2(4,0)
+  val shin_r32 = io.in1(31,0)
+  val shin32 = Mux(io.fn === ALU_SRL || io.fn === ALU_SRA, shin_r32, Reverse(shin_r32))
+  val shout_r32 = funcs.sign_ext((Cat(isSub(io.fn) & shin32(31), shin32) >> shamt32)(31,0), out_width = 64)
+  val shout_l32 = Reverse(shout_r32)
+
+  val final_shout_r = Mux(io.op32, shout_r32, shout_r)
+  val final_shout_l = Mux(io.op32, shout_l32, shout_l)
+
+  // i prefer MuxCase because it looks cooler
+  // default is for ALU_COPY1
   val bitwise_logic =
-    Mux(io.fn === ALU_AND, io.in1 & io.in2,
-    Mux(io.fn === ALU_OR,  io.in1 | io.in2,
-    Mux(io.fn === ALU_XOR, io.in1 ^ io.in2,
-                           io.in1))) // ALU_COPY1
+    MuxCase(io.in1, Array(
+      (io.fn === ALU_AND) ->  (io.in1 & io.in2),
+      (io.fn === ALU_OR) ->   (io.in1 | io.in2),
+      (io.fn === ALU_XOR) ->  (io.in1 ^ io.in2),
+    ))
 
   val out_xpr_length =
-    Mux(io.fn === ALU_ADD || io.fn === ALU_SUB,  sum,
-    Mux(io.fn === ALU_SLT || io.fn === ALU_SLTU, less,
-    Mux(io.fn === ALU_SRL || io.fn === ALU_SRA,  shout_r,
-    Mux(io.fn === ALU_SLL,                       shout_l,
-        bitwise_logic))))
+    MuxCase(bitwise_logic, Array(
+      (io.fn === ALU_ADD || io.fn === ALU_SUB) ->   final_sum,
+      (io.fn === ALU_SLT || io.fn === ALU_SLTU) ->  less,
+      (io.fn === ALU_SRL || io.fn === ALU_SRA) ->   final_shout_r,
+      (io.fn === ALU_SLL) ->                        final_shout_l
+    ))
 
-  io.out := out_xpr_length(31,0).asUInt()
-  io.adder_out := sum
+  io.out := out_xpr_length
+  io.adder_out := final_sum
 }
+
+object convertALU extends App {
+  val param = new Sodor64CoreParams()
+  (new chisel3.stage.ChiselStage().emitVerilog(new ALU()(param)))
+}
+
