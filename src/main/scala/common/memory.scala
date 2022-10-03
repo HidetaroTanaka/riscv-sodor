@@ -26,13 +26,13 @@ import sodor.common.Util._
 trait MemoryOpConstants
 {
    val MT_X  = 0.asUInt(3.W)
-   val MT_B  = 1.asUInt(3.W)
-   val MT_H  = 2.asUInt(3.W)
-   val MT_W  = 3.asUInt(3.W)
-   val MT_D  = 4.asUInt(3.W)
-   val MT_BU = 5.asUInt(3.W)
-   val MT_HU = 6.asUInt(3.W)
-   val MT_WU = 7.asUInt(3.W)
+   val MT_B  = 1.asUInt(3.W) // Byte
+   val MT_H  = 2.asUInt(3.W) // Halfword
+   val MT_W  = 3.asUInt(3.W) // Word
+   val MT_D  = 4.asUInt(3.W) // Double
+   val MT_BU = 5.asUInt(3.W) // Byte Unsigned
+   val MT_HU = 6.asUInt(3.W) // Halfword Unsigned
+   val MT_WU = 7.asUInt(3.W) // Word Unsigned
 
    val M_X   = "b0".asUInt(1.W)
    val M_XRD = "b0".asUInt(1.W) // int load
@@ -47,6 +47,18 @@ class MemPortIo(data_width: Int)(implicit val conf: SodorCoreParams) extends Bun
 {
    val req    = new DecoupledIO(new MemReq(data_width))
    val resp   = Flipped(new ValidIO(new MemResp(data_width)))
+}
+
+/**
+  * Memory IO for RV64
+  * @param data_width address width
+  * @param inst_width instruction width
+  * @param conf why don't we just use this instead of above parameters????
+  */
+class MemPortIoFor64(data_width: Int, inst_width: Int)(override implicit val conf: Sodor64CoreParams) extends MemPortIo(data_width = 64) {
+   require(data_width == conf.xprlen && inst_width == conf.instWidth)
+   override val req = new DecoupledIO(new MemReq(conf.xprlen))
+   override val resp = Flipped(new ValidIO(new MemResp(conf.instWidth)))
 }
 
 class MemReq(data_width: Int)(implicit val conf: SodorCoreParams) extends Bundle

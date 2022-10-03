@@ -12,11 +12,11 @@ import sodor.common._
 import freechips.rocketchip.config.Parameters
 import freechips.rocketchip.tile.CoreInterrupts
 
-class CoreIo(implicit val p: Parameters, val conf: SodorCoreParams) extends Bundle
+class CoreIo(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Bundle
 {
   val ddpath = Flipped(new DebugDPath())
   val dcpath = Flipped(new DebugCPath())
-  val imem = new MemPortIo(conf.xprlen)
+  val imem = new MemPortIo(conf.instWidth)
   val dmem = new MemPortIo(conf.xprlen)
   val interrupt = Input(new CoreInterrupts())
   val hartid = Input(UInt())

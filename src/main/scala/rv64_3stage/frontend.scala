@@ -34,42 +34,49 @@ import Constants._
 import sodor.common._
 
 
-class FrontEndIO(implicit val conf: SodorCoreParams) extends Bundle
+class FrontEndIO(implicit val conf: Sodor64CoreParams) extends Bundle
 {
    val cpu  = new FrontEndCpuIO
-   val imem = new MemPortIo(conf.xprlen)
+   val imem = new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth)
 
    val reset_vector = Input(UInt())
 
 }
 
-
+/**
+  * Frontend Request
+  * @param xprlen adder width from cpu to memory IO
+  */
 class FrontEndReq(xprlen: Int) extends Bundle
 {
    val pc   = UInt(xprlen.W)
 
 }
 
-
-class FrontEndResp(xprlen: Int) extends Bundle
+/**
+  * Frontend Response
+  * @param xprlen address width
+  * @param instWidth instruction width
+  */
+class FrontEndResp(xprlen: Int, instWidth: Int) extends Bundle
 {
    val pc   = UInt(xprlen.W)
-   val inst = UInt(xprlen.W)  // only support 32b insts for now
+   val inst = UInt(instWidth.W)  // only support 32b insts for now
 
 }
 
-class FrontEndDebug(xprlen: Int) extends Bundle
+class FrontEndDebug(xprlen: Int, instWidth: Int) extends Bundle
 {
    val if_pc   = Output(UInt(xprlen.W))
-   val if_inst = Output(UInt(xprlen.W))
+   val if_inst = Output(UInt(instWidth.W))
 }
 
-class FrontEndCpuIO(implicit val conf: SodorCoreParams) extends Bundle
+class FrontEndCpuIO(implicit val conf: Sodor64CoreParams) extends Bundle
 {
    val req = Flipped(new ValidIO(new FrontEndReq(conf.xprlen)))
-   val resp = new DecoupledIO(new FrontEndResp(conf.xprlen))
+   val resp = new DecoupledIO(new FrontEndResp(xprlen = conf.xprlen, instWidth = conf.instWidth))
 
-   val debug = new FrontEndDebug(conf.xprlen)
+   val debug = new FrontEndDebug(xprlen = conf.xprlen, instWidth = conf.instWidth)
 
    // Inst miss
    val imiss = Output(Bool())
@@ -79,7 +86,7 @@ class FrontEndCpuIO(implicit val conf: SodorCoreParams) extends Bundle
 }
 
 
-class FrontEnd(implicit val conf: SodorCoreParams) extends Module
+class FrontEnd(implicit val conf: Sodor64CoreParams) extends Module
 {
    val io = IO(new FrontEndIO)
    io := DontCare
@@ -90,7 +97,7 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
 
    val exe_reg_valid = RegInit(false.B)
    val exe_reg_pc    = Reg(UInt(conf.xprlen.W))
-   val exe_reg_inst  = Reg(UInt(conf.xprlen.W))
+   val exe_reg_inst  = Reg(UInt(conf.instWidth.W))
 
    //**********************************
    // Next PC Stage (if we can call it that)
@@ -105,7 +112,7 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
    val if_redirected_pc = Reg(UInt(conf.xprlen.W))
 
    // Instruction buffer
-   val if_buffer_in = Wire(new DecoupledIO(new MemResp(conf.xprlen)))
+   val if_buffer_in = Wire(new DecoupledIO(new MemResp(conf.instWidth)))
    if_buffer_in.valid := io.imem.resp.valid 
    if_buffer_in.bits := io.imem.resp.bits
    if_val_next := io.cpu.resp.ready || (if_buffer_in.ready && !io.imem.resp.valid) // If the incoming inst goes to buffer, don't send the next req

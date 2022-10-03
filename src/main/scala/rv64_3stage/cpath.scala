@@ -25,6 +25,7 @@ class CtrlSignals extends Bundle()
    val op1_sel   = Output(UInt(2.W))
    val op2_sel   = Output(UInt(2.W))
    val alu_fun   = Output(UInt(SZ_ALU_FN.W))
+   val alu_op32  = Output(Bool())      // is the instruction 32bit?
    val wb_sel    = Output(UInt(2.W))
    val rf_wen    = Output(Bool())
    val bypassable = Output(Bool())     // instruction's result can be bypassed
@@ -38,7 +39,7 @@ class CtrlSignals extends Bundle()
    val exception_cause = Output(UInt(32.W))
 }
 
-class CpathIo(implicit val conf: SodorCoreParams) extends Bundle()
+class CpathIo(implicit val conf: Sodor64CoreParams) extends Bundle()
 {
    val dcpath = Flipped(new DebugCPath())
    val imem = Flipped(new FrontEndCpuIO())
@@ -49,7 +50,7 @@ class CpathIo(implicit val conf: SodorCoreParams) extends Bundle()
 }
 
 
-class CtlPath(implicit val conf: SodorCoreParams) extends Module
+class CtlPath(implicit val conf: Sodor64CoreParams) extends Module
 {
    val io = IO(new CpathIo())
    io := DontCare
@@ -70,6 +71,9 @@ class CtlPath(implicit val conf: SodorCoreParams) extends Module
                   SW      -> List(Y, BR_N  , N, OP1_RS1, OP2_IMS , ALU_ADD , WB_X  , REN_0, N, MEN_1, M_XWR, MT_W,  CSR.N, M_N),
                   SB      -> List(Y, BR_N  , N, OP1_RS1, OP2_IMS , ALU_ADD , WB_X  , REN_0, N, MEN_1, M_XWR, MT_B,  CSR.N, M_N),
                   SH      -> List(Y, BR_N  , N, OP1_RS1, OP2_IMS , ALU_ADD , WB_X  , REN_0, N, MEN_1, M_XWR, MT_H,  CSR.N, M_N),
+                  LWU     -> List(Y, BR_N  , N, OP1_RS1, OP2_IMI , ALU_ADD , WB_MEM, REN_1, N, MEN_1, M_XRD, MT_WU, CSR.N, M_N),
+                  LD      -> List(Y, BR_N  , N, OP1_RS1, OP2_IMI , ALU_ADD , WB_MEM, REN_1, N, MEN_1, M_XRD, MT_D,  CSR.N, M_N),
+                  SD      -> List(Y, BR_N  , N, OP1_RS1, OP2_IMS , ALU_ADD , WB_X  , REN_0, N, MEN_1, M_XWR, MT_D,  CSR.N, M_N),
 
                   AUIPC   -> List(Y, BR_N  , N, OP1_IMU, OP2_PC  , ALU_ADD  ,WB_ALU, REN_1, Y, MEN_0, M_X ,  MT_X,  CSR.N, M_N),
                   LUI     -> List(Y, BR_N  , N, OP1_IMU, OP2_X   , ALU_COPY1,WB_ALU, REN_1, Y, MEN_0, M_X ,  MT_X,  CSR.N, M_N),
@@ -94,6 +98,17 @@ class CtlPath(implicit val conf: SodorCoreParams) extends Module
                   XOR     -> List(Y, BR_N  , N, OP1_RS1, OP2_RS2 , ALU_XOR , WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
                   SRA     -> List(Y, BR_N  , N, OP1_RS1, OP2_RS2 , ALU_SRA , WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
                   SRL     -> List(Y, BR_N  , N, OP1_RS1, OP2_RS2 , ALU_SRL , WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
+
+                  // RV64 instructions
+                  ADDIW   -> List(Y, BR_N  , N, OP1_RS1, OP2_IMI , ALU_ADD32,WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
+                  SLLIW   -> List(Y, BR_N  , N, OP1_RS1, OP2_IMI , ALU_SLL32,WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
+                  SRAIW   -> List(Y, BR_N  , N, OP1_RS1, OP2_IMI , ALU_SRA32,WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
+                  SRLIW   -> List(Y, BR_N  , N, OP1_RS1, OP2_IMI , ALU_SRL32,WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
+                  SLLW    -> List(Y, BR_N  , N, OP1_RS1, OP2_RS2 , ALU_SLL32,WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
+                  ADDW    -> List(Y, BR_N  , N, OP1_RS1, OP2_RS2 , ALU_ADD32,WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
+                  SUBW    -> List(Y, BR_N  , N, OP1_RS1, OP2_RS2 , ALU_ADD32,WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
+                  SRAW    -> List(Y, BR_N  , N, OP1_RS1, OP2_RS2 , ALU_SRA32,WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
+                  SRLW    -> List(Y, BR_N  , N, OP1_RS1, OP2_RS2 , ALU_SRL32,WB_ALU, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
 
                   JAL     -> List(Y, BR_J  , Y, OP1_X  , OP2_X   , ALU_X   , WB_PC4, REN_1, Y, MEN_0, M_X  , MT_X,  CSR.N, M_N),
                   JALR    -> List(Y, BR_JR , Y, OP1_RS1, OP2_IMI , ALU_X   , WB_PC4, REN_1, N, MEN_0, M_X  , MT_X,  CSR.N, M_N),

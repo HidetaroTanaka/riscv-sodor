@@ -14,7 +14,8 @@ import sodor.rv64.funcs
 object ALU
 {
   // TODO is this the optimal encoding?
-  val SZ_ALU_FN = 4
+  // MSB will decide 32bit or 64bit
+  val SZ_ALU_FN = 5
   val ALU_X    = 0.U // TODO use a more optimal decode table, which uses "???" format
   val ALU_ADD  = 0.U
   val ALU_SLL  = 1.U
@@ -27,6 +28,12 @@ object ALU
   val ALU_SLT  = 12.U
   val ALU_SLTU = 14.U
   val ALU_COPY1= 8.U
+
+  val ALU_ADD32 = Cat(1.U, ALU_ADD(3,0))
+  val ALU_SLL32 = Cat(1.U, ALU_SLL(3,0))
+  val ALU_SRL32 = Cat(1.U, ALU_SRL(3,0))
+  val ALU_SUB32 = Cat(1.U, ALU_SUB(3,0))
+  val ALU_SRA32 = Cat(1.U, ALU_SRA(3,0))
 
   def isSub(cmd: UInt) = cmd(3)
   def isSLTU(cmd: UInt) = cmd(1)
