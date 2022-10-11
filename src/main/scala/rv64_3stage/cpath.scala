@@ -25,7 +25,7 @@ class CtrlSignals extends Bundle()
    val op1_sel   = Output(UInt(2.W))
    val op2_sel   = Output(UInt(2.W))
    val alu_fun   = Output(UInt(SZ_ALU_FN.W))
-   val alu_op32  = Output(Bool())      // is the instruction 32bit?
+   val alu_op32  = Output(Bool())      // is the instruction 32bit arithmetic?
    val wb_sel    = Output(UInt(2.W))
    val rf_wen    = Output(Bool())
    val bypassable = Output(Bool())     // instruction's result can be bypassed
@@ -171,7 +171,8 @@ class CtlPath(implicit val conf: Sodor64CoreParams) extends Module
    io.ctl.brjmp_sel  := cs_brjmp_sel
    io.ctl.op1_sel    := cs_op1_sel
    io.ctl.op2_sel    := cs_op2_sel
-   io.ctl.alu_fun    := cs_alu_fun
+   io.ctl.alu_fun    := cs_alu_fun(SZ_ALU_FN-1, 0)
+   io.ctl.alu_op32   := cs_alu_fun(SZ_ALU_FN)
    io.ctl.wb_sel     := cs_wb_sel
    io.ctl.rf_wen     := Mux(!ctrl_valid, false.B, cs_rf_wen)
    io.ctl.bypassable := cs_bypassable

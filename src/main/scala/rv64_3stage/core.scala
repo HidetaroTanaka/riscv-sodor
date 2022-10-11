@@ -4,11 +4,11 @@
 
 package sodor.rv64
 
+import chipsalliance.rocketchip.config
+import chipsalliance.rocketchip.config.{Field, TerminalView, View}
 import chisel3._
 import chisel3.util._
-
 import sodor.common._
-
 import freechips.rocketchip.config.Parameters
 import freechips.rocketchip.tile.CoreInterrupts
 
@@ -54,4 +54,10 @@ class Core(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Abst
   val interrupt = io.interrupt
   val hartid = io.hartid
   val reset_vector = io.reset_vector
+}
+
+// how the fuck can i generate fucking verilog for fucking test
+object convertCore extends App {
+  val param = new Sodor64CoreParams()
+  (new chisel3.stage.ChiselStage().emitVerilog(new Core()(p = ???, conf = param)))
 }

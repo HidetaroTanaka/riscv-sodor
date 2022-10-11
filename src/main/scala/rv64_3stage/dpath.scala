@@ -36,7 +36,7 @@ class DatToCtlIo(implicit val conf: SodorCoreParams) extends Bundle()
    val csr_interrupt = Output(Bool())
 }
 
-class DpathIo(implicit val p: Parameters, val conf: SodorCoreParams) extends Bundle()
+class DpathIo(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Bundle()
 {
    val ddpath = Flipped(new DebugDPath())
    val imem = Flipped(new FrontEndCpuIO())
@@ -192,8 +192,10 @@ class DatPath(implicit val p: Parameters, val conf: Sodor64CoreParams) extends M
       alu.io.in1 := exe_alu_op1
       alu.io.in2 := exe_alu_op2
       alu.io.fn  := io.ctl.alu_fun
+      alu.io.op32:= io.ctl.alu_op32
 
    val exe_alu_out = alu.io.out
+
 
    // Branch/Jump Target Calculation
    val imm_brjmp = Mux(io.ctl.brjmp_sel, imm_j_sext, imm_b_sext)
