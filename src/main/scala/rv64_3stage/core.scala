@@ -12,7 +12,7 @@ import sodor.common._
 import freechips.rocketchip.config.Parameters
 import freechips.rocketchip.tile.CoreInterrupts
 
-class CoreIo(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Bundle
+class CoreIo(implicit val p: Parameters, val conf: SodorCoreParams) extends Bundle
 {
   val ddpath = Flipped(new DebugDPath())
   val dcpath = Flipped(new DebugCPath())
@@ -23,7 +23,7 @@ class CoreIo(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Bu
   val reset_vector = Input(UInt())
 }
 
-class Core(implicit val p: Parameters, val conf: Sodor64CoreParams) extends AbstractCore
+class Core(implicit val p: Parameters, val conf: SodorCoreParams) extends AbstractCore
 {
   val io = IO(new CoreIo())
 
@@ -58,6 +58,7 @@ class Core(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Abst
 
 // how the fuck can i generate fucking verilog for fucking test
 object convertCore extends App {
-  val param = new Sodor64CoreParams()
+  val param = new SodorCoreParams()
+  val tile = (new SodorTileParams()).core
   (new chisel3.stage.ChiselStage().emitVerilog(new Core()(p = ???, conf = param)))
 }

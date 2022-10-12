@@ -22,9 +22,11 @@ import freechips.rocketchip.prci.ClockSinkParameters
 case class SodorCoreParams(
   bootFreqHz: BigInt = BigInt(1700000000),
   ports: Int = 2,
-  xprlen: Int = 32,
+  rv64: Boolean = true,
+  xprlen: Int = if(sodor.rv64.Constants.RV64) 64 else 32,
   internalTile: SodorInternalTileFactory = Stage5Factory
 ) extends CoreParams {
+  val instWidth: Int = 32
   val useVM: Boolean = false
   val useHypervisor: Boolean = false
   val useUser: Boolean = false
@@ -61,13 +63,6 @@ case class SodorCoreParams(
   val fetchWidth: Int = 1 // TODO: Check
   val retireWidth: Int = 1
   val nPTECacheEntries: Int = 0
-}
-
-// wtf is difference between case class and normal class?????????????????????
-class Sodor64CoreParams(
-                         override val xprlen: Int = 64
-                       ) extends SodorCoreParams {
-  val instWidth = 32
 }
 
 // DOC include start: CanAttachTile

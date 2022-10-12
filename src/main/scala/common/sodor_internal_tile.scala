@@ -115,7 +115,7 @@ class SodorInternalTileStage3(range: AddressSet, ports: Int)(implicit p: Paramet
 
 // Original sodor tile in this repo.
 // This tile is only for 3-stage core since it has a special structure (SyncMem and possibly one memory port).
-class SodorInternalTileRV64Stage3(range: AddressSet)(implicit p: Parameters, conf: Sodor64CoreParams)
+class SodorInternalTileRV64Stage3(range: AddressSet)(implicit p: Parameters, conf: SodorCoreParams)
   extends AbstractInternalTile(2)
 {
   // Core memory port
@@ -130,10 +130,18 @@ class SodorInternalTileRV64Stage3(range: AddressSet)(implicit p: Parameters, con
   core.io.dmem <> core_ports(1)
 
   // scratchpad memory port
-  val memory = Module(new SyncScratchPadMemory(num_core_ports = 2))
-  val mem_ports = Wire(Vec(2, new MemPortIo(data_width = conf.xprlen)))
+  val memory = Module(new SyncScratchPadMemoryRV64(num_core_ports = 2))
+  // val mem_ports = Wire(Vec(2, new MemPortIo(data_width = conf.xprlen)))
+  val mem_ports = Wire(MixedVec(Seq(
+    new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth),
+    new MemPortIo(data_width = conf.xprlen)
+  )))
   // master memory port
-  val master_ports = Wire(Vec(2, new MemPortIo(data_width = conf.xprlen)))
+  // val master_ports = Wire(Vec(2, new MemPortIo(data_width = conf.xprlen)))
+  val master_ports = Wire(MixedVec(Seq(
+    new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth),
+    new MemPortIo(data_width = conf.xprlen)
+  )))
 
   // Connect ports
   ((mem_ports zip core_ports) zip master_ports).foreach({ case ((mem_port, core_port), master_port) => {
@@ -152,7 +160,7 @@ class SodorInternalTileRV64Stage3(range: AddressSet)(implicit p: Parameters, con
   master_ports(1) <> io.master_port(1)
   master_ports(0) <> io.master_port(0)
 
-  memory.io.debug_port <> io.debug_port
+  // memory.io.debug_port <> io.debug_port
 
   core.interrupt <> io.interrupt
   core.hartid := io.hartid
@@ -210,7 +218,7 @@ case class Stage3Factory(ports: Int = 2) extends SodorInternalTileFactory {
 
 case class Stage3RV64Factory(ports: Int = 2) extends SodorInternalTileFactory {
   def nMemPorts = 2
-  def instantiate(range: AddressSet)(implicit p: Parameters, conf: SodorCoreParams) = new SodorInternalTileRV64Stage3(range)(p = p, conf = new Sodor64CoreParams)
+  def instantiate(range: AddressSet)(implicit p: Parameters, conf: SodorCoreParams) = new SodorInternalTileRV64Stage3(range)(p = p, conf = new SodorCoreParams)
 }
 
 case object Stage5Factory extends SodorInternalTileFactory {

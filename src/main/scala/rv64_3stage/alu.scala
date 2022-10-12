@@ -40,7 +40,7 @@ object ALU
 }
 import ALU._
 
-class ALUIO(implicit val conf: Sodor64CoreParams) extends Bundle {
+class ALUIO(implicit val conf: SodorCoreParams) extends Bundle {
   val fn = Input(UInt(SZ_ALU_FN.W))
   val op32 = Input(Bool())
   val in2 = Input(UInt(conf.xprlen.W))
@@ -49,7 +49,7 @@ class ALUIO(implicit val conf: Sodor64CoreParams) extends Bundle {
   val adder_out = Output(UInt(conf.xprlen.W))
 }
 
-class ALU(implicit val conf: Sodor64CoreParams) extends Module
+class ALU(implicit val conf: SodorCoreParams) extends Module
 {
   val io = IO(new ALUIO)
 
@@ -104,7 +104,7 @@ class ALU(implicit val conf: Sodor64CoreParams) extends Module
 }
 
 object convertALU extends App {
-  val param = new Sodor64CoreParams()
+  val param = new SodorCoreParams()
   (new chisel3.stage.ChiselStage().emitVerilog(new ALU()(param)))
 }
 

@@ -55,7 +55,7 @@ class MemPortIo(data_width: Int)(implicit val conf: SodorCoreParams) extends Bun
   * @param inst_width instruction width
   * @param conf why don't we just use this instead of above parameters????
   */
-class MemPortIoFor64(data_width: Int, inst_width: Int)(override implicit val conf: Sodor64CoreParams) extends MemPortIo(data_width = 64) {
+class MemPortIoFor64(data_width: Int, inst_width: Int)(override implicit val conf: SodorCoreParams) extends MemPortIo(data_width = 64) {
    require(data_width == conf.xprlen && inst_width == conf.instWidth)
    override val req = new DecoupledIO(new MemReq(conf.xprlen))
    override val resp = Flipped(new ValidIO(new MemResp(conf.instWidth)))
@@ -224,8 +224,56 @@ class ScratchPadMemoryBase(num_core_ports: Int, num_bytes: Int = (1 << 21), useA
    async_data.write(debug_port_req.addr, debug_port_req.data, debug_port_req.getTLSize, debug_port_wen)
 }
 
+class ScratchPadMemoryRV64Base(num_core_ports: Int = 2, num_bytes: Int = (1 << 21))(implicit val conf: SodorCoreParams) extends Module
+{
+   val io = IO(new Bundle
+   {
+      val core_ports = MixedVec(Seq(
+         Flipped(new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth)),
+         Flipped(new MemPortIo(data_width = conf.xprlen))
+      ))
+      val debug_port = Flipped(new MemPortIo(data_width = 64))
+   })
+   val num_bytes_per_line = 8
+   val num_lines = num_bytes / num_bytes_per_line
+   println("\n    Sodor Tile: creating Asynchronous Scratchpad Memory of size " + num_lines*num_bytes_per_line/1024 + " kB\n")
+   val async_data = new MemoryModule(num_bytes, false)
+   for (i <- 0 until num_core_ports)
+   {
+      io.core_ports(i).resp.valid := RegNext(io.core_ports(i).req.valid, false.B)
+      io.core_ports(i).req.ready := true.B // for now, no back pressure
+   }
+
+   /////////// DPORT
+   val req_addri = io.core_ports(DPORT).req.bits.addr
+
+   val dport_req = io.core_ports(DPORT).req.bits
+   val dport_wen = io.core_ports(DPORT).req.valid && dport_req.fcn === M_XWR
+   io.core_ports(DPORT).resp.bits.data := async_data.read(dport_req.addr, dport_req.getTLSize, dport_req.getTLSigned)
+   async_data.write(dport_req.addr, dport_req.data, dport_req.getTLSize, dport_wen)
+   /////////////////
+
+   ///////////// IPORT
+   if (num_core_ports == 2){
+      val iport_req = io.core_ports(IPORT).req.bits
+      io.core_ports(IPORT).resp.bits.data := async_data.read(iport_req.addr, iport_req.getTLSize, iport_req.getTLSigned)
+   }
+   ////////////
+   // DEBUG PORT-------
+   io.debug_port.req.ready := true.B // for now, no back pressure
+   io.debug_port.resp.valid := RegNext(io.debug_port.req.valid, false.B)
+   // asynchronous read
+   val debug_port_req = io.debug_port.req.bits
+   val debug_port_wen = io.debug_port.req.valid && debug_port_req.fcn === M_XWR
+   io.debug_port.resp.bits.data := async_data.read(debug_port_req.addr, debug_port_req.getTLSize, debug_port_req.getTLSigned)
+   async_data.write(debug_port_req.addr, debug_port_req.data, debug_port_req.getTLSize, debug_port_wen)
+}
+
 class AsyncScratchPadMemory(num_core_ports: Int, num_bytes: Int = (1 << 21))(implicit conf: SodorCoreParams) 
    extends ScratchPadMemoryBase(num_core_ports, num_bytes, true)(conf)
 
 class SyncScratchPadMemory(num_core_ports: Int, num_bytes: Int = (1 << 21))(implicit conf: SodorCoreParams) 
    extends ScratchPadMemoryBase(num_core_ports, num_bytes, false)(conf)
+
+class SyncScratchPadMemoryRV64(num_core_ports: Int = 2, num_bytes: Int = (1 << 21))(implicit conf: SodorCoreParams)
+  extends ScratchPadMemoryRV64Base(num_core_ports, num_bytes)(conf)

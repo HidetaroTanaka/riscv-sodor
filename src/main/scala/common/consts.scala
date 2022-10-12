@@ -28,7 +28,7 @@ trait RISCVConstants
    // between software NOPs and machine-generated Bubbles in the pipeline.
    val BUBBLE  = 0x4033.U(32.W)
 
-   val INST_WIDTH = 32
+   val RV64 = true
 }
 
 }

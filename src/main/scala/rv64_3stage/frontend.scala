@@ -34,7 +34,7 @@ import Constants._
 import sodor.common._
 
 
-class FrontEndIO(implicit val conf: Sodor64CoreParams) extends Bundle
+class FrontEndIO(implicit val conf: SodorCoreParams) extends Bundle
 {
    val cpu  = new FrontEndCpuIO
    val imem = new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth)
@@ -71,7 +71,7 @@ class FrontEndDebug(xprlen: Int, instWidth: Int) extends Bundle
    val if_inst = Output(UInt(instWidth.W))
 }
 
-class FrontEndCpuIO(implicit val conf: Sodor64CoreParams) extends Bundle
+class FrontEndCpuIO(implicit val conf: SodorCoreParams) extends Bundle
 {
    val req = Flipped(new ValidIO(new FrontEndReq(conf.xprlen)))
    val resp = new DecoupledIO(new FrontEndResp(xprlen = conf.xprlen, instWidth = conf.instWidth))
@@ -86,7 +86,7 @@ class FrontEndCpuIO(implicit val conf: Sodor64CoreParams) extends Bundle
 }
 
 
-class FrontEnd(implicit val conf: Sodor64CoreParams) extends Module
+class FrontEnd(implicit val conf: SodorCoreParams) extends Module
 {
    val io = IO(new FrontEndIO)
    io := DontCare

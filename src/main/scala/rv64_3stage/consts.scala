@@ -30,6 +30,7 @@ trait SodorProcConstants
    //************************************
    // Debugging
    val PRINT_COMMIT_LOG = false
+   val RV64 = true
 }
 
 trait ScalarOpConstants

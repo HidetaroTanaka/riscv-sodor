@@ -36,7 +36,7 @@ class DatToCtlIo(implicit val conf: SodorCoreParams) extends Bundle()
    val csr_interrupt = Output(Bool())
 }
 
-class DpathIo(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Bundle()
+class DpathIo(implicit val p: Parameters, val conf: SodorCoreParams) extends Bundle()
 {
    val ddpath = Flipped(new DebugDPath())
    val imem = Flipped(new FrontEndCpuIO())
@@ -47,7 +47,7 @@ class DpathIo(implicit val p: Parameters, val conf: Sodor64CoreParams) extends B
    val hartid = Input(UInt())
 }
 
-class DatPath(implicit val p: Parameters, val conf: Sodor64CoreParams) extends Module
+class DatPath(implicit val p: Parameters, val conf: SodorCoreParams) extends Module
 {
    val io = IO(new DpathIo())
    io := DontCare
@@ -310,7 +310,7 @@ class DatPath(implicit val p: Parameters, val conf: Sodor64CoreParams) extends M
    // Printout
 
    val debug_wb_inst = RegNext(Mux((wb_hazard_stall || io.ctl.exe_kill || !exe_valid), BUBBLE, exe_inst))
-
+   /**
    printf("Cyc= %d [%d] pc=[%x] W[r%d=%x][%d] Op1=[r%d][%x] Op2=[r%d][%x] inst=[%x] %c%c%c DASM(%x)\n",
       csr.io.time(31,0),
       csr.io.retire,
@@ -353,5 +353,5 @@ class DatPath(implicit val p: Parameters, val conf: Sodor64CoreParams) extends M
          }
       }
    }
-
+   */
 }
