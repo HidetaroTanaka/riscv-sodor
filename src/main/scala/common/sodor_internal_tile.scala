@@ -30,6 +30,7 @@ abstract class AbstractCore extends Module {
   val reset_vector: UInt
   val io: Data
 }
+// TODO: fuck the master_port for 64bit mem width
 abstract class AbstractInternalTile(ports: Int)(implicit val p: Parameters, val conf: SodorCoreParams) extends Module {
   val io = IO(new Bundle {
     val debug_port = Flipped(new MemPortIo(data_width = conf.xprlen))
