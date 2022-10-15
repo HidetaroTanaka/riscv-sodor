@@ -228,10 +228,10 @@ class ScratchPadMemoryRV64Base(num_core_ports: Int = 2, num_bytes: Int = (1 << 2
 {
    val io = IO(new Bundle
    {
-      val core_ports = MixedVec(Seq(
+      val core_ports = if(conf.rv64) MixedVec(Seq(
+         Flipped(new MemPortIo(data_width = conf.xprlen)),
          Flipped(new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth)),
-         Flipped(new MemPortIo(data_width = conf.xprlen))
-      ))
+      )) else Vec(2, Flipped(new MemPortIo(data_width = conf.xprlen)))
       val debug_port = Flipped(new MemPortIo(data_width = 64))
    })
    val num_bytes_per_line = 8

@@ -30,11 +30,14 @@ abstract class AbstractCore extends Module {
   val reset_vector: UInt
   val io: Data
 }
-// TODO: fuck the master_port for 64bit mem width
+
 abstract class AbstractInternalTile(ports: Int)(implicit val p: Parameters, val conf: SodorCoreParams) extends Module {
   val io = IO(new Bundle {
     val debug_port = Flipped(new MemPortIo(data_width = conf.xprlen))
-    val master_port = Vec(ports, new MemPortIo(data_width = conf.xprlen))
+    val master_port = if(conf.rv64) MixedVec(Seq(
+      new MemPortIo(data_width = conf.xprlen),
+      new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth)
+    )) else Vec(ports, new MemPortIo(data_width = conf.xprlen))
     val interrupt = Input(new CoreInterrupts())
     val hartid = Input(UInt())
     val reset_vector = Input(UInt())
@@ -124,24 +127,24 @@ class SodorInternalTileRV64Stage3(range: AddressSet)(implicit p: Parameters, con
   core.io := DontCare
   // val core_ports = Wire(Vec(2, new MemPortIo(data_width = conf.xprlen)))
   val core_ports = Wire(MixedVec(Seq(
+    new MemPortIo(data_width = conf.xprlen),
     new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth),
-    new MemPortIo(data_width = conf.xprlen)
   )))
-  core.io.imem <> core_ports(0)
-  core.io.dmem <> core_ports(1)
+  core.io.imem <> core_ports(1)
+  core.io.dmem <> core_ports(0)
 
   // scratchpad memory port
   val memory = Module(new SyncScratchPadMemoryRV64(num_core_ports = 2))
   // val mem_ports = Wire(Vec(2, new MemPortIo(data_width = conf.xprlen)))
   val mem_ports = Wire(MixedVec(Seq(
-    new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth),
-    new MemPortIo(data_width = conf.xprlen)
+    new MemPortIo(data_width = conf.xprlen),
+    new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth)
   )))
   // master memory port
   // val master_ports = Wire(Vec(2, new MemPortIo(data_width = conf.xprlen)))
   val master_ports = Wire(MixedVec(Seq(
-    new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth),
-    new MemPortIo(data_width = conf.xprlen)
+    new MemPortIo(data_width = conf.xprlen),
+    new MemPortIoFor64(data_width = conf.xprlen, inst_width = conf.instWidth)
   )))
 
   // Connect ports
@@ -161,7 +164,7 @@ class SodorInternalTileRV64Stage3(range: AddressSet)(implicit p: Parameters, con
   master_ports(1) <> io.master_port(1)
   master_ports(0) <> io.master_port(0)
 
-  // memory.io.debug_port <> io.debug_port
+  memory.io.debug_port <> io.debug_port
 
   core.interrupt <> io.interrupt
   core.hartid := io.hartid
@@ -218,8 +221,8 @@ case class Stage3Factory(ports: Int = 2) extends SodorInternalTileFactory {
 }
 
 case class Stage3RV64Factory(ports: Int = 2) extends SodorInternalTileFactory {
-  def nMemPorts = 2
-  def instantiate(range: AddressSet)(implicit p: Parameters, conf: SodorCoreParams) = new SodorInternalTileRV64Stage3(range)(p = p, conf = new SodorCoreParams)
+  def nMemPorts = ports
+  def instantiate(range: AddressSet)(implicit p: Parameters, conf: SodorCoreParams) = new SodorInternalTileRV64Stage3(range) // (range)(p = p, conf = new SodorCoreParams)
 }
 
 case object Stage5Factory extends SodorInternalTileFactory {

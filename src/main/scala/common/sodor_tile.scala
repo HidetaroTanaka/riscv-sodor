@@ -226,7 +226,47 @@ class WithNSodorCores(
           ),
           core = SodorCoreParams(
             ports = internalTile.nMemPorts,
-            internalTile = internalTile
+            internalTile = internalTile,
+            rv64 = false
+          )
+        ),
+        crossingParams = RocketCrossingParams()
+      )
+    } ++ prev
+  }
+  // Configurate # of bytes in one memory / IO transaction. For RV64, one load/store instruction can transfer 8 bytes at most.
+  case SystemBusKey => up(SystemBusKey, site).copy(beatBytes = 4)
+  // The # of instruction bits. Use maximum # of bits if your core supports both 32 and 64 bits.
+  case XLen => 32
+}) {
+  require(n == 1, "Sodor doesn't support multiple core.")
+}
+
+class WithNRV64SodorCores(
+                       n: Int = 1,
+                       overrideIdOffset: Option[Int] = None,
+                       internalTile: SodorInternalTileFactory = Stage3RV64Factory()
+                     ) extends Config((site, here, up) => {
+  case TilesLocated(InSubsystem) => {
+    // Calculate the next available hart ID (since hart ID cannot be duplicated)
+    val prev = up(TilesLocated(InSubsystem), site)
+    require(prev.length == 0, "Sodor doesn't support multiple core.")
+    val idOffset = overrideIdOffset.getOrElse(prev.size)
+    // Create TileAttachParams for every core to be instantiated
+    (0 until n).map { i =>
+      SodorTileAttachParams(
+        tileParams = SodorTileParams(
+          hartId = i + idOffset,
+          scratchpad = DCacheParams(
+            nSets = 4096, // Very large so we have enough SPAD for bmark tests
+            nWays = 1,
+            nMSHRs = 0,
+            scratch = Some(0x80000000L)
+          ),
+          core = SodorCoreParams(
+            ports = internalTile.nMemPorts,
+            internalTile = internalTile,
+            rv64 = true
           )
         ),
         crossingParams = RocketCrossingParams()
