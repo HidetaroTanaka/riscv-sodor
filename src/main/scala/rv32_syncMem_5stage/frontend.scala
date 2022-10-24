@@ -65,6 +65,7 @@ class FrontEndDebug(xprlen: Int) extends Bundle
 class FrontEndCpuIO(implicit val conf: SodorCoreParams) extends Bundle
 {
    val req = Flipped(new ValidIO(new FrontEndReq(conf.xprlen)))
+   val pc_predict = Flipped(new ValidIO(new FrontEndReq(conf.xprlen)))
    val resp = new DecoupledIO(new FrontEndResp(conf.xprlen))
 
    val debug = new FrontEndDebug(conf.xprlen)
@@ -74,11 +75,17 @@ class FrontEndCpuIO(implicit val conf: SodorCoreParams) extends Bundle
    // Flush the entire pipeline upon exception, including exe stage
    val exe_kill = Input(Bool())
 
+   // branch prediction miss
+   val bp_miss = Input(Bool())
 }
 
 
 class FrontEnd(implicit val conf: SodorCoreParams) extends Module
 {
+   // Function for Branch Prediction
+   def branch_prediction(current_pc: UInt, predict_pc: UInt): (Bool, UInt) = {
+      (current_pc > predict_pc, predict_pc)
+   }
    val io = IO(new FrontEndIO)
    io := DontCare
 
@@ -112,6 +119,9 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
 
    // stall IF/EXE if backend not ready
    if_pc_next := if_pc_plus4
+   // branch prediction
+
+   // true pc calculated in EX stage
    when (io.cpu.req.valid)
    {
       // datapath is redirecting the PC stream (misspeculation)
