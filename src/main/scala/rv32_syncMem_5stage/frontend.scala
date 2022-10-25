@@ -37,7 +37,7 @@ class FrontEndIO(implicit val conf: SodorCoreParams) extends Bundle
    val cpu  = new FrontEndCpuIO
    val imem = new MemPortIo(conf.xprlen)
 
-   val reset_vector = Input(UInt())
+   val reset_vector = Input(UInt(conf.xprlen.W))
 
 }
 
@@ -65,7 +65,12 @@ class FrontEndDebug(xprlen: Int) extends Bundle
 class FrontEndCpuIO(implicit val conf: SodorCoreParams) extends Bundle
 {
    val req = Flipped(new ValidIO(new FrontEndReq(conf.xprlen)))
+   // predicted pc in ID stage
+   // jal prediction will be always correct, but any branch and jalr prediction might be incorrect
    val pc_predict = Flipped(new ValidIO(new FrontEndReq(conf.xprlen)))
+   // calculated pc in EX stage.
+   // if this is different from pc_predict, then core should raise resp.valid
+   // resp.valid is true means that pc prediction miss
    val resp = new DecoupledIO(new FrontEndResp(conf.xprlen))
 
    val debug = new FrontEndDebug(conf.xprlen)
@@ -76,16 +81,13 @@ class FrontEndCpuIO(implicit val conf: SodorCoreParams) extends Bundle
    val exe_kill = Input(Bool())
 
    // branch prediction miss
-   val bp_miss = Input(Bool())
+   // req.valid should indicate whether branch prediction missed or not
+   // val bp_miss = Input(Bool())
 }
 
 
 class FrontEnd(implicit val conf: SodorCoreParams) extends Module
 {
-   // Function for Branch Prediction
-   def branch_prediction(current_pc: UInt, predict_pc: UInt): (Bool, UInt) = {
-      (current_pc > predict_pc, predict_pc)
-   }
    val io = IO(new FrontEndIO)
    io := DontCare
 
@@ -118,24 +120,47 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
    val if_buffer_out = Queue(if_buffer_in, entries = 1, pipe = false, flow = true)
 
    // stall IF/EXE if backend not ready
+   // デフォルトではpc_nextは現在のpc+4
    if_pc_next := if_pc_plus4
-   // branch prediction
-
+   // if pc prediction is valid, next pc should be predicted pc
+   // (this pc is predicted in ID stage)
+   when (io.cpu.pc_predict.valid) {
+      if_pc_next := io.cpu.pc_predict.bits.pc
+   }
+   // if cpu requests new (and correct) pc from EX stage, next pc should be this pc.
    // true pc calculated in EX stage
    when (io.cpu.req.valid)
    {
       // datapath is redirecting the PC stream (misspeculation)
+      // データパスがPCを更新する（分岐予測ミスにより）
       if_redirected := true.B
       if_redirected_pc := io.cpu.req.bits.pc
    }
+   // if frontend redirects pc from EX stage, next pc should be the pc.
    when (if_redirected)
    {
       if_pc_next := if_redirected_pc
    }
+   /*
+    * Sodorの命令メモリ仕様
+    * 1. 命令メモリがbusyで無ければ，imem.req.readyはtrue
+    * 2. imem.req.validが真であれば，次のクロックサイクルでimem.respからデータが出てくる
+    * 3. アクセスミス等があればimem.resp.validをfalseにし，正しいデータが出てくる時にtrueにする
+    *
+    */
 
    // Go to next PC if both CPU and imem are ready, and the memory response for the current PC already presents
    val if_reg_pc_responded = RegInit(false.B)
+
+   // whether update if_reg_pc or not
+   // pc is updated only if imem responds and cpu is ready to get next frontend resp
+   val if_pc_update = Wire(Bool())
+   if_pc_update := io.imem.resp.valid && io.cpu.resp.ready
+
+   // 前のサイクルで命令メモリが応答しておりコアが待機中である，または今のサイクルで命令メモリが応答した
    val if_pc_responsed = if_reg_pc_responded || io.imem.resp.valid
+   // cpuがreadyかつ，命令メモリがreadyかつ，PCによる応答があれば，
+   // PCレジスタにif_pc_nextを入れる
    when (io.cpu.resp.ready && io.imem.req.ready && if_pc_responsed)
    {
       if_reg_pc_responded := false.B
@@ -144,7 +169,9 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
       {
          if_redirected := false.B
       }
-   } .elsewhen (io.imem.resp.valid)
+   }
+   // 上の条件が満たされていないが，命令メモリからの応答がある場合
+   .elsewhen (io.imem.resp.valid)
    {
       if_reg_pc_responded := true.B
    }
@@ -180,4 +207,9 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
    // only used for debugging
    io.cpu.debug.if_pc := if_reg_pc
    io.cpu.debug.if_inst := io.imem.resp.bits.data
+}
+
+object frontendConverter extends App {
+   val param = SodorCoreParams()
+   (new chisel3.stage.ChiselStage).emitVerilog(new FrontEnd()(param))
 }
