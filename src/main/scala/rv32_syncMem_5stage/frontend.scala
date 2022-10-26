@@ -95,10 +95,6 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
    // Pipeline State Registers
    val if_reg_pc     = RegInit(io.reset_vector - 4.U)
 
-   val exe_reg_valid = RegInit(false.B)
-   val exe_reg_pc    = Reg(UInt(conf.xprlen.W))
-   val exe_reg_inst  = Reg(UInt(conf.xprlen.W))
-
    //**********************************
    // Next PC Stage (if we can call it that)
    val if_pc_next = Wire(UInt(conf.xprlen.W))
@@ -144,24 +140,24 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
    /*
     * Sodorの命令メモリ仕様
     * 1. 命令メモリがbusyで無ければ，imem.req.readyはtrue
-    * 2. imem.req.validが真であれば，次のクロックサイクルでimem.respからデータが出てくる
+    * 2. imem.req.validが真であれば，次のクロックサイクルまたはそれ以降でimem.respからデータが出てくる（正しいデータが出ている時にtrue）
     * 3. アクセスミス等があればimem.resp.validをfalseにし，正しいデータが出てくる時にtrueにする
+    * 4. addrが変わらず，imem.resp.validがtrueであれば出力を変えない
     *
     */
 
    // Go to next PC if both CPU and imem are ready, and the memory response for the current PC already presents
    val if_reg_pc_responded = RegInit(false.B)
 
-   // whether update if_reg_pc or not
-   // pc is updated only if imem responds and cpu is ready to get next frontend resp
-   val if_pc_update = Wire(Bool())
-   if_pc_update := io.imem.resp.valid && io.cpu.resp.ready
-
    // 前のサイクルで命令メモリが応答しておりコアが待機中である，または今のサイクルで命令メモリが応答した
    val if_pc_responsed = if_reg_pc_responded || io.imem.resp.valid
-   // cpuがreadyかつ，命令メモリがreadyかつ，PCによる応答があれば，
+
+   // whether if_reg_pc can be updated or not
+   // pc is updated only if pc responded and cpu is ready to get next frontend resp
+   val if_pc_update = if_pc_responsed && io.cpu.resp.ready && io.imem.req.ready
+
    // PCレジスタにif_pc_nextを入れる
-   when (io.cpu.resp.ready && io.imem.req.ready && if_pc_responsed)
+   when (if_pc_update)
    {
       if_reg_pc_responded := false.B
       if_reg_pc    := if_pc_next
@@ -187,21 +183,14 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
    if_buffer_out.ready := io.cpu.resp.ready
    when (io.cpu.exe_kill)
    {
-      exe_reg_valid := false.B
+      io.cpu.resp.valid := false.B
    }
    .elsewhen (io.cpu.resp.ready)
    {
-      exe_reg_valid := if_buffer_out.valid && !io.cpu.req.valid && !if_redirected
-      exe_reg_pc    := if_reg_pc
-      exe_reg_inst  := if_buffer_out.bits.data
+      io.cpu.resp.valid := if_buffer_out.valid && !io.cpu.req.valid && !if_redirected
    }
-
-   //**********************************
-   // Execute Stage
-   // (pass the instruction to the backend)
-   io.cpu.resp.valid     := exe_reg_valid
-   io.cpu.resp.bits.inst := exe_reg_inst
-   io.cpu.resp.bits.pc   := exe_reg_pc
+   io.cpu.resp.bits.pc    := if_reg_pc
+   io.cpu.resp.bits.inst  := if_buffer_out.bits.data
 
    //**********************************
    // only used for debugging
@@ -213,3 +202,4 @@ object frontendConverter extends App {
    val param = SodorCoreParams()
    (new chisel3.stage.ChiselStage).emitVerilog(new FrontEnd()(param))
 }
+

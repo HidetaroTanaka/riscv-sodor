@@ -52,3 +52,10 @@ class Core(implicit val p: Parameters, val conf: SodorCoreParams) extends Abstra
   val hartid = io.hartid
   val reset_vector = io.reset_vector
 }
+
+object convertCore extends App {
+  // i should do something fuck to create verilog for core
+  val p: Parameters = Parameters.empty
+  val conf = SodorCoreParams()
+  (new chisel3.stage.ChiselStage).emitVerilog(new Core()(p, conf))
+}
