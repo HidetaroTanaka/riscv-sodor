@@ -75,8 +75,8 @@ class FrontEndCpuIO(implicit val conf: SodorCoreParams) extends Bundle
 
    val debug = new FrontEndDebug(conf.xprlen)
 
-   // Inst miss
-   val imiss = Output(Bool())
+   // not used wtf
+   // val imiss = Output(Bool())
    // Flush the entire pipeline upon exception, including exe stage
    val exe_kill = Input(Bool())
 
@@ -202,4 +202,3 @@ object frontendConverter extends App {
    val param = SodorCoreParams()
    (new chisel3.stage.ChiselStage).emitVerilog(new FrontEnd()(param))
 }
-
