@@ -180,6 +180,9 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
 
    //**********************************
    // Inst Fetch/Return Stage
+   val counter = RegInit(0.U(2.W))
+   counter := Mux(counter === 2.U, counter, counter + 1.U)
+
    if_buffer_out.ready := io.cpu.resp.ready
    when (io.cpu.exe_kill)
    {
@@ -187,7 +190,7 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
    }
    .elsewhen (io.cpu.resp.ready)
    {
-      io.cpu.resp.valid := if_buffer_out.valid && !io.cpu.req.valid && !if_redirected
+      io.cpu.resp.valid := if_buffer_out.valid && !io.cpu.req.valid && !if_redirected && (counter === 2.U)
    }
    io.cpu.resp.bits.pc    := if_reg_pc
    io.cpu.resp.bits.inst  := if_buffer_out.bits.data
