@@ -79,10 +79,6 @@ class FrontEndCpuIO(implicit val conf: SodorCoreParams) extends Bundle
    // val imiss = Output(Bool())
    // Flush the entire pipeline upon exception, including exe stage
    val exe_kill = Input(Bool())
-
-   // branch prediction miss
-   // req.valid should indicate whether branch prediction missed or not
-   // val bp_miss = Input(Bool())
 }
 
 
@@ -184,7 +180,8 @@ class FrontEnd(implicit val conf: SodorCoreParams) extends Module
    counter := Mux(counter === 2.U, counter, counter + 1.U)
 
    if_buffer_out.ready := io.cpu.resp.ready
-   when (io.cpu.exe_kill)
+   // パイプラインフラッシュ，分岐予測ミス
+   when (io.cpu.exe_kill || io.cpu.req.valid)
    {
       io.cpu.resp.valid := false.B
    }
