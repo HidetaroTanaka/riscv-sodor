@@ -31,6 +31,47 @@ import chisel3.util._
 import Constants._
 import sodor.common._
 
+object OPCODE_MAP {
+   val LOAD       = BitPat("b0000011")
+   val LOAD_FP    = BitPat("b0000111")
+   val CUSTOM_0   = BitPat("b0001011")
+   val MISC_MEM   = BitPat("b0001111")
+   val OP_IMM     = BitPat("b0010011")
+   val OP_AUIPC   = BitPat("b0010111")
+   val OP_IMM_32  = BitPat("b0011011")
+   val STORE      = BitPat("b0100011")
+   val STORE_FP   = BitPat("b0100111")
+   val CUSTOM_1   = BitPat("b0101011")
+   val AMO        = BitPat("b0101111")
+   val OP         = BitPat("b0110011")
+   val LUI        = BitPat("b0110111")
+   val OP_32      = BitPat("b0111011")
+   val MADD       = BitPat("b1000011")
+   val MSUB       = BitPat("b1000111")
+   val NMSUB      = BitPat("b1001011")
+   val NMADD      = BitPat("b1001111")
+   val OP_FP      = BitPat("b1010011")
+   val RESERVED_1 = BitPat("b1010111")
+   val RV128_1    = BitPat("b1011011")
+   val BRANCH     = BitPat("b1100011")
+   val JALR       = BitPat("b1100111")
+   val RESERVED_2 = BitPat("b1101011")
+   val JAL        = BitPat("b1101111")
+   val SYSTEM     = BitPat("b1110011")
+   val RESERVED_3 = BitPat("b1110111")
+   val RV128_2    = BitPat("b1111011")
+}
+
+class InstBundle(implicit val conf: SodorCoreParams) extends Bundle {
+   val inst = UInt(conf.xprlen.W)
+
+   def funct7: UInt = inst(31, 25)
+   def rs2: UInt = inst(24, 20)
+   def rs1: UInt = inst(19, 15)
+   def funct3: UInt = inst(14, 12)
+   def rd: UInt = inst(11, 7)
+   def opcode: UInt = inst(6, 0)
+}
 
 class FrontEndIO(implicit val conf: SodorCoreParams) extends Bundle
 {
@@ -108,6 +149,7 @@ class BranchPredictor(implicit val conf: SodorCoreParams) extends Module {
    def JAL     = BitPat("b?????????????????????????1101111")
    def JALR    = BitPat("b?????????????????????????1100111")
    def BRANCH  = BitPat("b?????????????????????????1100011")
+   def RET     = BitPat("0000000000000000b1000000001100111")
 
    def sext(bits: UInt): UInt = {
       val msb = bits(bits.getWidth-1)
@@ -129,6 +171,14 @@ class BranchPredictor(implicit val conf: SodorCoreParams) extends Module {
 
    io.resp.bits := branch_target
    io.resp.valid := branch_target > io.req.bits.pc
+
+   // Umm, actually, RAS is more complicated.
+   when(inst === JAL && RAS_pointer =/= 15.U(4.W)) {
+      RAS(RAS_pointer) := io.req.bits.pc + 4.U(conf.xprlen.W)
+      RAS_pointer := RAS_pointer + 1.U(4.W)
+   } .elsewhen(inst === RET && RAS_pointer =/= 0.U(4.W) ) {
+      RAS_pointer := RAS_pointer - 1.U(4.W)
+   }
 }
 
 class FrontEnd(implicit val conf: SodorCoreParams) extends Module
